@@ -290,6 +290,15 @@
   .icon-btn.on-publish{background:var(--gold);color:var(--charcoal);}
   .card-tags-row{padding:0 10px 8px;display:flex;flex-wrap:wrap;gap:4px;}
   .mini-tag{font-size:10px;color:var(--charcoal-soft);background:var(--cream);border:1px solid var(--line);border-radius:20px;padding:1px 6px;}
+    .multi-select-group{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+  }
+  .multi-select-group label{
+    display:flex;align-items:center;gap:6px;font-size:12.5px;color:var(--charcoal);cursor:pointer;user-select:none;
+  }
+  .multi-select-group input[type="checkbox"]{
+    cursor:pointer;accent-color:var(--gold);
+  }
 
   /* ===== SELECT MODE FLOATING BAR ===== */
   .select-floatbar{
@@ -378,14 +387,13 @@
   <input type="text" id="searchInput" placeholder="Buscar por nome ou #hashtag..." autocomplete="off">
   <select id="collectionFilter"></select>
   <select id="groupFilter" class="toolbar-select"><option value="">Todos os grupos</option></select>
-  <select id="statusFilter" class="toolbar-select">
-    <option value="">Todos os status</option>
-    <option value="fav">Favoritas</option>
-    <option value="approved">Aprovadas</option>
-    <option value="rejected">Reprovadas</option>
-    <option value="published">Publicadas</option>
-    <option value="unrated">Sem rating</option>
-  </select>
+  <div id="statusFilter" class="multi-select-group">
+    <label><input type="checkbox" data-status="fav"> Favoritas</label>
+    <label><input type="checkbox" data-status="approved"> Aprovadas</label>
+    <label><input type="checkbox" data-status="rejected"> Reprovadas</label>
+    <label><input type="checkbox" data-status="published"> Publicadas</label>
+    <label><input type="checkbox" data-status="unrated"> Sem rating</label>
+  </div>
   <select id="ratingFilter" class="toolbar-select">
     <option value="">Qualquer rating</option>
     <option value="5">★5</option>
@@ -528,6 +536,7 @@ let renderedCount = 0;
 const PAGE_SIZE = 96;
 let selectMode = false;
 let selectedIds = new Set();
+let selectedStatuses = new Set();
 let currentModalId = null;
 const idIndex = {}; // id -> catalog item, built once
 CATALOG.forEach(item => { idIndex[item[2]] = item; });
@@ -603,11 +612,15 @@ function applyFilters(){
     const m = getMeta(id);
     if(col && r[1] !== col) return false;
     if(groupSel && m.group !== groupSel) return false;
-    if(status === 'fav' && !m.fav) return false;
-    if(status === 'approved' && m.approved !== true) return false;
-    if(status === 'rejected' && m.approved !== false) return false;
-    if(status === 'published' && !m.published) return false;
-    if(status === 'unrated' && m.rating > 0) return false;
+    if(selectedStatuses.size > 0){
+      let matches = false;
+      if(selectedStatuses.has('fav') && m.fav) matches = true;
+      if(selectedStatuses.has('approved') && m.approved === true) matches = true;
+      if(selectedStatuses.has('rejected') && m.approved === false) matches = true;
+      if(selectedStatuses.has('published') && m.published) matches = true;
+      if(selectedStatuses.has('unrated') && m.rating === 0) matches = true;
+      if(!matches) return false;
+    }
     if(ratingMin && m.rating < ratingMin) return false;
     if(q){
       const nameMatch = r[0].toLowerCase().includes(q);
@@ -1026,7 +1039,14 @@ loadMoreBtn.addEventListener('click', renderNextPage);
 searchEl.addEventListener('input', applyFilters);
 collectionEl.addEventListener('change', applyFilters);
 groupFilterEl.addEventListener('change', applyFilters);
-statusFilterEl.addEventListener('change', applyFilters);
+document.getElementById('statusFilter').addEventListener('change', function(e){
+  if(e.target.type === 'checkbox'){
+    const status = e.target.dataset.status;
+    if(e.target.checked) selectedStatuses.add(status);
+    else selectedStatuses.delete(status);
+    applyFilters();
+  }
+});
 ratingFilterEl.addEventListener('change', applyFilters);
 sortEl.addEventListener('change', applyFilters);
 
